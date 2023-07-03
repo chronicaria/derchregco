@@ -214,7 +214,7 @@ def update_svg_image(button1, button2, button3, correlation_threshold, state_inp
         with open('/Users/andrewpark/Desktop/Personal/Code/Politics/countychange_modified.svg', 'r') as file:
             svg_code = file.read()
         src = generate_svg_image(svg_code)
-        return src, threshold, state_input, county_input, dem_input, rep_input, oth_input 
+        return src, correlation_threshold, state_input, county_input, dem_input, rep_input, oth_input 
     if ctx.triggered_id == 'reset-button':
         correlation_threshold = 0
         state = "Your State"

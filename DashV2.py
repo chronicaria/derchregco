@@ -160,13 +160,11 @@ fips_states = {"Alabama": "01","Alaska":"02",
 "Wisconsin": "55",
 "Wyoming": "56",}
 demdata, gopdata, othdata = df4['per_dem'].tolist(), df4['per_gop'].tolist(), df4['per_oth'].tolist()
-originaldemdata, originalgopdata, originalothdata = df4['per_dem'].tolist(), df4['per_gop'].tolist(), df4['per_oth'].tolist()
 demswing_amounts, gopswing_amounts, othswing_amounts = [], [], []
-# Generate base64 encoded SVG image
+
 def generate_svg_image(svg_code):
     return f"data:image/svg+xml;base64,{base64.b64encode(svg_code.encode()).decode()}"
 
-# Create Dash app
 app = dash.Dash(__name__)
 
 # Default input values
@@ -177,10 +175,6 @@ dem_swing = 0.0
 rep_swing = 0.0
 oth_swing = 0.0
 swing_counties = []
-
-tempdemdata = demdata
-tempgopdata = gopdata
-tempothdata = othdata
 
 # Callback to update SVG image and input values
 @app.callback(
@@ -234,11 +228,8 @@ def update_svg_image(button1, button2, button3, threshold, state_input, county_i
 
         updated_svg_code = svg_code
 
-        # Generate base64 encoded SVG image
         src = generate_svg_image(updated_svg_code)
         return src, threshold, state_input, county_input, dem_input, rep_input, oth_input 
-
-
     if ctx.triggered_id == 'reset-button':
         correlation_threshold = 0
         state = "Alabama"
@@ -269,7 +260,6 @@ def update_svg_image(button1, button2, button3, threshold, state_input, county_i
 
         updated_svg_code = svg_code
 
-        # Generate base64 encoded SVG image
         src = generate_svg_image(updated_svg_code)
         return src, threshold, state_input, county_input, dem_input, rep_input, oth_input 
     
@@ -387,14 +377,12 @@ def update_svg_image(button1, button2, button3, threshold, state_input, county_i
 
     updated_svg_code = svg_code
 
-    # Generate base64 encoded SVG image
     src = generate_svg_image(updated_svg_code)
     return src, threshold, state_input, county_input, dem_input, rep_input, oth_input
 
 # Define app layout
 app.layout = html.Div([
-    html.Div(
-        [
+    html.Div([
             html.P("Correlation Threshold:"),
             dcc.Input(id='correlation-threshold', type='number', value=correlation_threshold, step=0.1),
             html.P("State:"),
@@ -414,8 +402,7 @@ app.layout = html.Div([
         className='inputs-container',
         style={'width': '30%', 'float': 'left'}
     ),
-    html.Div(
-        [
+    html.Div([
             html.P(id='import-message'),
             html.Img(id='svg-image'),
         ],
@@ -424,6 +411,6 @@ app.layout = html.Div([
     ),
 ], className='container')
 
-# Run the app
+# run app
 if __name__ == '__main__':
     app.run_server(debug=True)

@@ -7,18 +7,20 @@ import csv
 import xml.etree.ElementTree as ET
 
 def update_svg(svg_path, csv_path):
-    # Read Results cSV
+    # Read the CSV file
     county_data = {}
     with open(csv_path, 'r') as csvfile:
         reader = csv.reader(csvfile)
         for row in reader:
-            fips_code = row[1] # FIPS Codes in Row 2
-            result = row[2] if len(row) > 1 else '' # County Results in Row 3
+            fips_code = row[1]
+            result = row[2] if len(row) > 1 else ''
             county_data[fips_code] = result
-    # Parsing SVG File
+
+    # Parse the SVG file
     tree = ET.parse(svg_path)
     root = tree.getroot()
-    # Adding Fill Color for Each County
+
+    # Add fill clause to the style of each path
     for path in root.findall('.//{http://www.w3.org/2000/svg}path'):
         fips_code = path.get('id')[1:]
         if fips_code in county_data:
@@ -27,9 +29,11 @@ def update_svg(svg_path, csv_path):
             style = path.get('style')
             new_style = f"{style};fill:{fill_color}"
             path.set('style', new_style)
-    # Write Changed SVG File
+
+    # Write the modified SVG file
     modified_svg_path = svg_path.replace('.svg', '_modified.svg')
     tree.write(modified_svg_path, encoding='UTF-8', xml_declaration=True)
+
 def get_fill_color(result):
     color_scale = {
         0.01: '#e0e0ff',
@@ -68,39 +72,42 @@ def get_fill_color(result):
         2.5: '#006b00',
         2.75: '#005600',
         float('inf'): '#004700'
-    } 
+    }
+    
     result = float(result)
     for limit, color in color_scale.items():
         if result <= limit:
             return color
     return '#ffffff'
 
-# SVG and CSV File Path
-svg_file_path = '/Users/andrewpark/Desktop/Personal/Code/Politics/countychange.svg' # County SVG
-csv_file_path = '/Users/andrewpark/Desktop/Personal/Code/Politics/results.csv' # Results File
-# Slope Files
-dem_slope = pd.read_csv("/Users/andrewpark/Desktop/Personal/Code/Politics/DS68.csv").values.tolist()
-rep_slope = pd.read_csv("/Users/andrewpark/Desktop/Personal/Code/Politics/RS68.csv").values.tolist()
-oth_slope = pd.read_csv("/Users/andrewpark/Desktop/Personal/Code/Politics/OS68.csv").values.tolist()
-# Correlation Files
-dem_corr = pd.read_csv("/Users/andrewpark/Desktop/Personal/Code/Politics/DC68.csv").values.tolist()
-rep_corr = pd.read_csv("/Users/andrewpark/Desktop/Personal/Code/Politics/RC68.csv").values.tolist()
-oth_corr = pd.read_csv("/Users/andrewpark/Desktop/Personal/Code/Politics/OC68.csv").values.tolist()
-# FIPS and Base Election Data Files
-fips = pd.read_csv("/Users/andrewpark/Desktop/Personal/Code/Politics/FIPS.csv").values.tolist()
-base_election_results = pd.read_csv("/Users/andrewpark/Desktop/Personal/Code/Politics/2020Data.csv", dtype={"county_fips": str})
-# Deleting First Column of Correlations
-for i in range(len(dem_corr)):
-    del dem_corr[i][0]
-    del rep_corr[i][0]
-    del oth_corr[i][0]
-# Fixing FIPS Codes to be Strings (Include 0 in Front)
-fips = [item for sublist in fips for item in sublist]
-for i in range(len(fips)):
-    if (fips[i] < 10000):
-        fips[i] = "0" + str(fips[i])
+svg_file_path = '/Users/andrewpark/Desktop/Personal/Code/Politics/countychange.svg'
+csv_file_path = '/Users/andrewpark/Desktop/Personal/Code/Politics/results.csv'
+
+df1 = pd.read_csv("/Users/andrewpark/Desktop/Personal/Code/Politics/DS68.csv")
+df2 = pd.read_csv("/Users/andrewpark/Desktop/Personal/Code/Politics/RS68.csv")
+df3 = pd.read_csv("/Users/andrewpark/Desktop/Personal/Code/Politics/OS68.csv")
+
+dem_corrdf = pd.read_csv("/Users/andrewpark/Desktop/Personal/Code/Politics/DC68.csv")
+gop_corrdf = pd.read_csv("/Users/andrewpark/Desktop/Personal/Code/Politics/RC68.csv")
+oth_corrdf = pd.read_csv("/Users/andrewpark/Desktop/Personal/Code/Politics/OC68.csv")
+
+df_fips = pd.read_csv("/Users/andrewpark/Desktop/Personal/Code/Politics/ALtoIA.csv")
+df4 = pd.read_csv("/Users/andrewpark/Desktop/Personal/Code/Politics/2020Data.csv", dtype={"county_fips": str})
+
+dem_array, gop_array, oth_array = df1.values.tolist(), df2.values.tolist(), df3.values.tolist()
+dem_array2, gop_array2, oth_array2 = dem_corrdf.values.tolist(), gop_corrdf.values.tolist(), oth_corrdf.values.tolist()
+for i in range(len(dem_array2)):
+    del dem_array2[i][0]
+    del gop_array2[i][0]
+    del oth_array2[i][0]
+
+fips_codes = df_fips.values.tolist()
+final_fips = [item for sublist in fips_codes for item in sublist]
+for i in range(len(final_fips)):
+    if (final_fips[i] < 10000):
+        final_fips[i] = "0" + str(final_fips[i])
     else:
-        fips[i] = str(fips[i])
+        final_fips[i] = str(final_fips[i])
 
 fips_states = {"Alabama": "01","Alaska":"02",
 "Arizona": "04",
@@ -152,12 +159,14 @@ fips_states = {"Alabama": "01","Alaska":"02",
 "West Virginia": "54",
 "Wisconsin": "55",
 "Wyoming": "56",}
-dem_results, rep_results, oth_results = base_election_results['per_dem'].tolist(), base_election_results['per_gop'].tolist(), base_election_results['per_oth'].tolist()
-dem_swing_results, rep_swing_results, oth_swing_results = [], [], []
-
+demdata, gopdata, othdata = df4['per_dem'].tolist(), df4['per_gop'].tolist(), df4['per_oth'].tolist()
+originaldemdata, originalgopdata, originalothdata = df4['per_dem'].tolist(), df4['per_gop'].tolist(), df4['per_oth'].tolist()
+demswing_amounts, gopswing_amounts, othswing_amounts = [], [], []
+# Generate base64 encoded SVG image
 def generate_svg_image(svg_code):
     return f"data:image/svg+xml;base64,{base64.b64encode(svg_code.encode()).decode()}"
 
+# Create Dash app
 app = dash.Dash(__name__)
 
 # Default input values
@@ -168,6 +177,10 @@ dem_swing = 0.0
 rep_swing = 0.0
 oth_swing = 0.0
 swing_counties = []
+
+tempdemdata = demdata
+tempgopdata = gopdata
+tempothdata = othdata
 
 # Callback to update SVG image and input values
 @app.callback(
@@ -189,114 +202,134 @@ swing_counties = []
     State('oth-swing', 'value')
 )
 
-def update_svg_image(button1, button2, button3, correlation_threshold, state_input, county_input, dem_input, rep_input, oth_input):
-    global swing_counties, dem_results, rep_results, oth_results
+def update_svg_image(button1, button2, button3, threshold, state_input, county_input, dem_input, rep_input, oth_input):
+    global swing_counties
+    global demdata
+    global gopdata
+    global othdata
     if ctx.triggered_id is None:
         return dash.no_update, correlation_threshold, state, county, dem_swing, rep_swing, oth_swing
     if ctx.triggered_id == 'session-button':
         swing_counties = []
-        dem_results, rep_results, oth_results = findem_results.copy(), finrep_results.copy(), finoth_results.copy()
-        demtemp, goptemp, othtemp = findem_results.copy(), finrep_results.copy(), finoth_results.copy()
-        margin, margin2 = [0]*len(findem_results), [0]*len(findem_results)
+        demdata, gopdata, othdata = findemdata.copy(), fingopdata.copy(), finothdata.copy()
+        demtemp, goptemp, othtemp = findemdata.copy(), fingopdata.copy(), finothdata.copy()
+        margin, margin2 = [0]*len(findemdata), [0]*len(findemdata)
 
-        for i in range(len(findem_results)): # for EACH of ALL county
-            margin[i] = max(findem_results[i], finrep_results[i], finoth_results[i]) - (1-max(findem_results[i], finrep_results[i], finoth_results[i])-min(findem_results[i], finrep_results[i], finoth_results[i]))
-            if max(findem_results[i], finrep_results[i], finoth_results[i]) == findem_results[i]:
-                margin2[i] = min(1,margin[i]) # Democrat is +0
-            elif max(findem_results[i], finrep_results[i], finoth_results[i]) == finrep_results[i]:
-                margin2[i] = min(2,margin[i]+1) # Republican is +1
-            else:
-                margin2[i] = min(3,margin[i]+2)  # Other is +2
-        
-        final_results = pd.DataFrame({"fips": fips, "margin": margin2})
-        final_results.to_csv("results.csv")
-        update_svg(svg_file_path, csv_file_path)  
-        with open('/Users/andrewpark/Desktop/Personal/Code/Politics/countychange_modified.svg', 'r') as file:
-            svg_code = file.read()
-        src = generate_svg_image(svg_code)
-        return src, threshold, state_input, county_input, dem_input, rep_input, oth_input 
-    if ctx.triggered_id == 'reset-button':
-        correlation_threshold = 0
-        state = "Your State"
-        county = "Your County"
-        dem_swing = 0.0
-        rep_swing = 0.0
-        oth_swing = 0.0
-        swing_counties = []
-        findem_results, finrep_results, finoth_results = base_election_results['per_dem'].tolist(), base_election_results['per_gop'].tolist(), base_election_results['per_oth'].tolist()
-        margin, margin2 = [0]*len(findem_results), [0]*len(findem_results)
-
-        for i in range(len(findem_results)): # for EACH of ALL county
-            margin[i] = max(findem_results[i], finrep_results[i], finoth_results[i]) - (1-max(findem_results[i], finrep_results[i], finoth_results[i])-min(findem_results[i], finrep_results[i], finoth_results[i]))
-            if max(findem_results[i], finrep_results[i], finoth_results[i]) == findem_results[i]:
+        for i in range(len(findemdata)): # for EACH of ALL county
+            margin[i] = max(findemdata[i], fingopdata[i], finothdata[i]) - (1-max(findemdata[i], fingopdata[i], finothdata[i])-min(findemdata[i], fingopdata[i], finothdata[i]))
+            if max(findemdata[i], fingopdata[i], finothdata[i]) == findemdata[i]:
                 margin2[i] = min(1,margin[i])
-            elif max(findem_results[i], finrep_results[i], finoth_results[i]) == finrep_results[i]:
+            elif max(findemdata[i], fingopdata[i], finothdata[i]) == fingopdata[i]:
                 margin2[i] = min(2,margin[i]+1) # gop = +1
             else:
                 margin2[i] = min(3,margin[i]+2)  # ind = +2
         
-        final_results = pd.DataFrame({"fips": fips, "margin": margin2})
-        final_results.to_csv("results.csv")
-        update_svg(svg_file_path, csv_file_path)  
+        df5 = {"fips": final_fips, "margin": margin2}
+        dict2 = pd.DataFrame(df5)
+        dict2.to_csv("results.csv")
+        update_svg(svg_file_path, csv_file_path)
+        
         with open('/Users/andrewpark/Desktop/Personal/Code/Politics/countychange_modified.svg', 'r') as file:
             svg_code = file.read()
-        src = generate_svg_image(svg_code)
-        return src, correlation_threshold, state_input, county_input, dem_input, rep_input, oth_input
+
+        updated_svg_code = svg_code
+
+        # Generate base64 encoded SVG image
+        src = generate_svg_image(updated_svg_code)
+        return src, threshold, state_input, county_input, dem_input, rep_input, oth_input 
+
+
+    if ctx.triggered_id == 'reset-button':
+        correlation_threshold = 0
+        state = "Alabama"
+        county = "Autauga"
+        dem_swing = 0.0
+        rep_swing = 0.0
+        oth_swing = 0.0
+        swing_counties = []
+        findemdata, fingopdata, finothdata = df4['per_dem'].tolist(), df4['per_gop'].tolist(), df4['per_oth'].tolist()
+        margin, margin2 = [0]*len(findemdata), [0]*len(findemdata)
+
+        for i in range(len(findemdata)): # for EACH of ALL county
+            margin[i] = max(findemdata[i], fingopdata[i], finothdata[i]) - (1-max(findemdata[i], fingopdata[i], finothdata[i])-min(findemdata[i], fingopdata[i], finothdata[i]))
+            if max(findemdata[i], fingopdata[i], finothdata[i]) == findemdata[i]:
+                margin2[i] = min(1,margin[i])
+            elif max(findemdata[i], fingopdata[i], finothdata[i]) == fingopdata[i]:
+                margin2[i] = min(2,margin[i]+1) # gop = +1
+            else:
+                margin2[i] = min(3,margin[i]+2)  # ind = +2
+        
+        df5 = {"fips": final_fips, "margin": margin2}
+        dict2 = pd.DataFrame(df5)
+        dict2.to_csv("results.csv")
+        update_svg(svg_file_path, csv_file_path)
+        
+        with open('/Users/andrewpark/Desktop/Personal/Code/Politics/countychange_modified.svg', 'r') as file:
+            svg_code = file.read()
+
+        updated_svg_code = svg_code
+
+        # Generate base64 encoded SVG image
+        src = generate_svg_image(updated_svg_code)
+        return src, threshold, state_input, county_input, dem_input, rep_input, oth_input 
     
     #finding county_rowcolumn
     chosen_state = state_input
     starting_fips = fips_states[chosen_state] + "001"
     starting_search = 0
-    for i in range(len(fips)):
-        if (fips[i] == starting_fips):
+    for i in range(len(final_fips)):
+        if (final_fips[i] == starting_fips):
             starting_search = i
     county_rowcolumn = 0
-    for i in range(len(dem_slope)):
-        if (dem_slope[starting_search+i][0] == county_input):
-            county_rowcolumn = starting_search + i
+    for i in range(len(dem_array)):
+        if (dem_array[starting_search+i][0] == county_input):
+            county_rowcolumn = starting_search+i
             break
-    dem_swing_results.append(dem_input)
-    rep_swing_results.append(rep_input)
-    oth_swing_results.append(oth_input)
-    swing_counties.append(county_rowcolumn)
+    demswing_amounts.append(dem_input)
+    gopswing_amounts.append(rep_input)
+    othswing_amounts.append(oth_input)
 
-    dem_slopes, rep_slopes, oth_slopes = [], [], []
-    dem_correlations, gop_correlations, oth_correlations = [], [], []
+    swing_counties.append(county_rowcolumn)
+    correlation_threshold = threshold 
+
+    dem_slopes, gop_slopes, oth_slopes = [], [], []
     for i in swing_counties:
-        demappending = dem_slope[i].copy()
+        demappending = dem_array[i].copy()
         del demappending[0]
         dem_slopes.append(demappending)
-        gopappending = rep_slope[i].copy()
+        gopappending = gop_array[i].copy()
         del gopappending[0]
-        rep_slopes.append(gopappending)
-        othappending = oth_slope[i].copy()
+        gop_slopes.append(gopappending)
+        othappending = oth_array[i].copy()
         del othappending[0]
         oth_slopes.append(othappending)
 
+    dem_correlations, gop_correlations, oth_correlations = [], [], []
+    for i in swing_counties:
         demcorrelation_list, gopcorrelation_list, othcorrelation_list = [], [], []
-        for j in range(len(dem_corr)):
+        for j in range(len(dem_array2)):
             if (j <= i):
-                demcorrelation_list.append(dem_corr[i][j])
-                gopcorrelation_list.append(rep_corr[i][j])
-                othcorrelation_list.append(oth_corr[i][j])
+                demcorrelation_list.append(dem_array2[i][j])
+                gopcorrelation_list.append(gop_array2[i][j])
+                othcorrelation_list.append(oth_array2[i][j])
             else:
-                demcorrelation_list.append(dem_corr[j][i])
-                gopcorrelation_list.append(rep_corr[j][i])
-                othcorrelation_list.append(oth_corr[j][i])
+                demcorrelation_list.append(dem_array2[j][i])
+                gopcorrelation_list.append(gop_array2[j][i])
+                othcorrelation_list.append(oth_array2[j][i])
         dem_correlations.append(demcorrelation_list)
         gop_correlations.append(gopcorrelation_list)
         oth_correlations.append(othcorrelation_list)
     
     demswingdata, gopswingdata, othswingdata = [0]*len(dem_slopes[0]), [0]*len(dem_slopes[0]), [0]*len(dem_slopes[0])
-    demtemp, goptemp, othtemp = dem_results.copy(), rep_results.copy(), oth_results.copy()
+    demtemp, goptemp, othtemp = demdata.copy(), gopdata.copy(), othdata.copy()
     count = 0
-    for j in swing_counties: # Directly changing Swing Counties
-        demtemp[j] += (dem_swing_results[count]/100)
-        goptemp[j] += (rep_swing_results[count]/100)
-        othtemp[j] += (oth_swing_results[count]/100)
-        demswingdata[j] = (dem_swing_results[count]/100)
-        gopswingdata[j] = (rep_swing_results[count]/100)
-        othswingdata[j] = (oth_swing_results[count]/100)
+    for j in swing_counties: # for the counties we're changing
+        demtemp[j] += (demswing_amounts[count]/100)
+        goptemp[j] += (gopswing_amounts[count]/100)
+        othtemp[j] += (othswing_amounts[count]/100)
+        demswingdata[j] = (demswing_amounts[count]/100)
+        gopswingdata[j] = (gopswing_amounts[count]/100)
+        othswingdata[j] = (othswing_amounts[count]/100)
         count += 1
         
     for i in range(len(dem_slopes[0])): # for EACH of ALL county
@@ -306,11 +339,11 @@ def update_svg_image(button1, button2, button3, correlation_threshold, state_inp
         demcorrelation, gopcorrelation, othcorrelation = 0, 0, 0
         for j in range(len(dem_slopes)): # for each county we're changing
             if ((abs(dem_correlations[j][i]) >= correlation_threshold)):
-                demsum += (dem_swing_results[j] * dem_slopes[j][i]) * (abs(dem_correlations[j][i])**2)
+                demsum += (demswing_amounts[j] * dem_slopes[j][i]) * (abs(dem_correlations[j][i])**2)
             if ((abs(gop_correlations[j][i]) >= correlation_threshold)):
-                gopsum += (rep_swing_results[j] * rep_slopes[j][i]) * (abs(gop_correlations[j][i])**2)
+                gopsum += (gopswing_amounts[j] * gop_slopes[j][i]) * (abs(gop_correlations[j][i])**2)
             if ((abs(oth_correlations[j][i]) >= correlation_threshold)):
-                othsum += (oth_swing_results[j] * oth_slopes[j][i]) * (abs(oth_correlations[j][i])**2)      
+                othsum += (othswing_amounts[j] * oth_slopes[j][i]) * (abs(oth_correlations[j][i])**2)      
             demcorrelation += abs(dem_correlations[j][i])**2
             gopcorrelation += abs(gop_correlations[j][i])**2
             othcorrelation += abs(oth_correlations[j][i])**2
@@ -328,33 +361,40 @@ def update_svg_image(button1, button2, button3, correlation_threshold, state_inp
             if (othtemp[i] < 0):
                 othtemp[i] = 0  
     
-    findem_results,finrep_results,finoth_results = [0]*len(dem_slopes[0]), [0]*len(dem_slopes[0]), [0]*len(dem_slopes[0])
+    findemdata,fingopdata,finothdata = [0]*len(dem_slopes[0]), [0]*len(dem_slopes[0]), [0]*len(dem_slopes[0])
     margin, margin2, drmargin = [0]*len(dem_slopes[0]), [0]*len(dem_slopes[0]), [0]*len(dem_slopes[0]) 
 
     for i in range(len(demtemp)): # for EACH of ALL county
-        findem_results[i] = demtemp[i]/(demtemp[i]+goptemp[i]+othtemp[i])  
-        finrep_results[i] = goptemp[i]/(demtemp[i]+goptemp[i]+othtemp[i]) 
-        finoth_results[i] = othtemp[i]/(demtemp[i]+goptemp[i]+othtemp[i])
-        margin[i] = max(findem_results[i], finrep_results[i], finoth_results[i]) - (1-max(findem_results[i], finrep_results[i], finoth_results[i])-min(findem_results[i], finrep_results[i], finoth_results[i]))
-        if max(findem_results[i], finrep_results[i], finoth_results[i]) == findem_results[i]:
+        findemdata[i] = demtemp[i]/(demtemp[i]+goptemp[i]+othtemp[i])  
+        fingopdata[i] = goptemp[i]/(demtemp[i]+goptemp[i]+othtemp[i]) 
+        finothdata[i] = othtemp[i]/(demtemp[i]+goptemp[i]+othtemp[i])
+        margin[i] = max(findemdata[i], fingopdata[i], finothdata[i]) - (1-max(findemdata[i], fingopdata[i], finothdata[i])-min(findemdata[i], fingopdata[i], finothdata[i]))
+        if max(findemdata[i], fingopdata[i], finothdata[i]) == findemdata[i]:
             margin2[i] = min(1,margin[i])
-        elif max(findem_results[i], finrep_results[i], finoth_results[i]) == finrep_results[i]:
+        elif max(findemdata[i], fingopdata[i], finothdata[i]) == fingopdata[i]:
             margin2[i] = min(2,margin[i]+1) # gop = +1
         else:
             margin2[i] = min(3,margin[i]+2)  # ind = +2
-        drmargin[i] = finrep_results[i]-findem_results[i]
+        drmargin[i] = fingopdata[i]-findemdata[i]
     
-    final_results = pd.DataFrame({"fips": fips, "margin": margin2})
-    final_results.to_csv("results.csv")
-    update_svg(svg_file_path, csv_file_path)  
+    df5 = {"fips": final_fips, "margin": margin2}
+    dict2 = pd.DataFrame(df5)
+    dict2.to_csv("results.csv")
+    update_svg(svg_file_path, csv_file_path)
+       
     with open('/Users/andrewpark/Desktop/Personal/Code/Politics/countychange_modified.svg', 'r') as file:
         svg_code = file.read()
-    src = generate_svg_image(svg_code)
-    return src, correlation_threshold, state_input, county_input, dem_input, rep_input, oth_input
 
-# App layout
+    updated_svg_code = svg_code
+
+    # Generate base64 encoded SVG image
+    src = generate_svg_image(updated_svg_code)
+    return src, threshold, state_input, county_input, dem_input, rep_input, oth_input
+
+# Define app layout
 app.layout = html.Div([
-    html.Div([
+    html.Div(
+        [
             html.P("Correlation Threshold:"),
             dcc.Input(id='correlation-threshold', type='number', value=correlation_threshold, step=0.1),
             html.P("State:"),
@@ -374,7 +414,8 @@ app.layout = html.Div([
         className='inputs-container',
         style={'width': '30%', 'float': 'left'}
     ),
-    html.Div([
+    html.Div(
+        [
             html.P(id='import-message'),
             html.Img(id='svg-image'),
         ],
@@ -383,6 +424,6 @@ app.layout = html.Div([
     ),
 ], className='container')
 
-# Run app
+# Run the app
 if __name__ == '__main__':
     app.run_server(debug=True)

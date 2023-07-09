@@ -87,7 +87,7 @@ dem_corr = pd.read_csv("/Users/andrewpark/Desktop/Personal/Code/Politics/DC68.cs
 rep_corr = pd.read_csv("/Users/andrewpark/Desktop/Personal/Code/Politics/RC68.csv").values.tolist()
 oth_corr = pd.read_csv("/Users/andrewpark/Desktop/Personal/Code/Politics/OC68.csv").values.tolist()
 # FIPS and Base Election Data Files
-fips = pd.read_csv("/Users/andrewpark/Desktop/Personal/Code/Politics/FIPS.csv").values.tolist()
+fips = pd.read_csv("/Users/andrewpark/Desktop/Personal/Code/Politics/FIPS_New.csv").values.tolist()
 base_election_results = pd.read_csv("/Users/andrewpark/Desktop/Personal/Code/Politics/2020Data.csv", dtype={"county_fips": str})
 # Deleting First Column of Correlations
 for i in range(len(dem_corr)):
@@ -197,9 +197,10 @@ def update_svg_image(button1, button2, button3, correlation_threshold, state_inp
         swing_counties = []
         dem_results, rep_results, oth_results = findem_results.copy(), finrep_results.copy(), finoth_results.copy()
         demtemp, goptemp, othtemp = findem_results.copy(), finrep_results.copy(), finoth_results.copy()
-        margin, margin2 = [0]*len(findem_results), [0]*len(findem_results)
+        length_dem_results = len(dem_results)
+        margin, margin2 = [0]*len(length_dem_results), [0]*len(length_dem_results)
 
-        for i in range(len(findem_results)): # for EACH of ALL county
+        for i in range(length_dem_results): # for EACH of ALL county
             margin[i] = max(findem_results[i], finrep_results[i], finoth_results[i]) - (1-max(findem_results[i], finrep_results[i], finoth_results[i])-min(findem_results[i], finrep_results[i], finoth_results[i]))
             if max(findem_results[i], finrep_results[i], finoth_results[i]) == findem_results[i]:
                 margin2[i] = min(1,margin[i]) # Democrat is +0
@@ -224,9 +225,9 @@ def update_svg_image(button1, button2, button3, correlation_threshold, state_inp
         oth_swing = 0.0
         swing_counties = []
         findem_results, finrep_results, finoth_results = base_election_results['per_dem'].tolist(), base_election_results['per_gop'].tolist(), base_election_results['per_oth'].tolist()
-        margin, margin2 = [0]*len(findem_results), [0]*len(findem_results)
+        margin, margin2 = [0]*length_dem_results, [0]*length_dem_results
 
-        for i in range(len(findem_results)): # for EACH of ALL county
+        for i in range(length_dem_results): # for EACH of ALL county
             margin[i] = max(findem_results[i], finrep_results[i], finoth_results[i]) - (1-max(findem_results[i], finrep_results[i], finoth_results[i])-min(findem_results[i], finrep_results[i], finoth_results[i]))
             if max(findem_results[i], finrep_results[i], finoth_results[i]) == findem_results[i]:
                 margin2[i] = min(1,margin[i])
@@ -264,13 +265,13 @@ def update_svg_image(button1, button2, button3, correlation_threshold, state_inp
     dem_correlations, gop_correlations, oth_correlations = [], [], []
     for i in swing_counties:
         demappending = dem_slope[i].copy()
-        del demappending[0]
-        dem_slopes.append(demappending)
         gopappending = rep_slope[i].copy()
-        del gopappending[0]
-        rep_slopes.append(gopappending)
         othappending = oth_slope[i].copy()
+        del demappending[0]
+        del gopappending[0]
         del othappending[0]
+        dem_slopes.append(demappending)
+        rep_slopes.append(gopappending)
         oth_slopes.append(othappending)
 
         demcorrelation_list, gopcorrelation_list, othcorrelation_list = [], [], []
@@ -315,24 +316,21 @@ def update_svg_image(button1, button2, button3, correlation_threshold, state_inp
             gopcorrelation += abs(gop_correlations[j][i])**2
             othcorrelation += abs(oth_correlations[j][i])**2
         demtemp[i] += (demsum / demcorrelation) / 100
-        demswingdata[i] = (demsum / demcorrelation) / 100
         goptemp[i] += (gopsum / gopcorrelation) / 100
-        gopswingdata[i] = (gopsum / gopcorrelation) / 100
         othtemp[i] += (othsum / othcorrelation) / 100
+        demswingdata[i] = (demsum / demcorrelation) / 100
+        gopswingdata[i] = (gopsum / gopcorrelation) / 100
         othswingdata[i] = (othsum / othcorrelation) / 100
         for j in range(len(dem_slopes)): # for each county we're changing
-            if (demtemp[i] < 0):
-                demtemp[i] = 0
-            if (goptemp[i] < 0):
-                goptemp[i] = 0
-            if (othtemp[i] < 0):
-                othtemp[i] = 0  
+            demtemp[i] = max(demtemp[i], 0)
+            goptemp[i] = max(goptemp[i], 0)
+            othtemp[i] = max(othtemp[i], 0)
     
     findem_results,finrep_results,finoth_results = [0]*len(dem_slopes[0]), [0]*len(dem_slopes[0]), [0]*len(dem_slopes[0])
     margin, margin2, drmargin = [0]*len(dem_slopes[0]), [0]*len(dem_slopes[0]), [0]*len(dem_slopes[0]) 
 
     for i in range(len(demtemp)): # for EACH of ALL county
-        findem_results[i] = demtemp[i]/(demtemp[i]+goptemp[i]+othtemp[i])  
+        findem_results[i] = demtemp[i]/(demtemp[i]+goptemp[i]+othtemp[i]) # Constraining to 100% 
         finrep_results[i] = goptemp[i]/(demtemp[i]+goptemp[i]+othtemp[i]) 
         finoth_results[i] = othtemp[i]/(demtemp[i]+goptemp[i]+othtemp[i])
         margin[i] = max(findem_results[i], finrep_results[i], finoth_results[i]) - (1-max(findem_results[i], finrep_results[i], finoth_results[i])-min(findem_results[i], finrep_results[i], finoth_results[i]))
